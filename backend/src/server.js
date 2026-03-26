@@ -1,3 +1,5 @@
+const profileRoutes = require("./routes/profile.routes");
+
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -20,6 +22,8 @@ app.get("/", (req, res) => {
 // ================= AUTH ROUTES =================
 app.use("/api/v1/auth", authRoutes);
 
+app.use("/api/v1/profile", profileRoutes);
+
 // ================= PROTECTED ROUTE =================
 app.get("/api/v1/protected", authMiddleware, (req, res) => {
   res.json({
@@ -39,3 +43,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+
+app.use("/api/v1/profile", profileRoutes);
