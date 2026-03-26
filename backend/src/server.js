@@ -46,3 +46,6 @@ app.listen(PORT, () => {
 
 
 app.use("/api/v1/profile", profileRoutes);
+
+const gigRoutes = require("./routes/gig.routes");
+app.use("/api/v1/gigs", gigRoutes);
