@@ -49,3 +49,7 @@ app.use("/api/v1/profile", profileRoutes);
 
 const gigRoutes = require("./routes/gig.routes");
 app.use("/api/v1/gigs", gigRoutes);
+
+const applicationRoutes = require("./routes/application.routes");
+
+app.use("/api/v1/applications", applicationRoutes);
