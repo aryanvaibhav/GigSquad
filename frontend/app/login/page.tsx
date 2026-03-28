@@ -2,47 +2,59 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Mail, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    const res = await fetch("http://localhost:5000/api/v1/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    if (!email || !password) return;
 
-    const data = await res.json();
+    setLoading(true);
 
-    if (res.ok) {
-      localStorage.setItem("token", data.token);
-      router.push("/dashboard");
-    } else {
-      alert(data.message);
+    try {
+      const res = await fetch("http://localhost:5000/api/v1/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        localStorage.setItem("token", data.token);
+        router.push("/dashboard");
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex bg-[#F4F6F3]">
 
-      {/* LEFT SIDE (ILLUSTRATION) */}
-      <div className="hidden lg:flex w-1/2 items-center justify-center bg-[#E8EFE6] p-10">
-        <div className="text-center space-y-4 max-w-sm">
+      {/* LEFT SIDE */}
+      <div className="hidden lg:flex w-1/2 items-center justify-center bg-[#E6EDE4] p-10">
+        <div className="text-center space-y-5 max-w-sm">
           
-          {/* Replace with your own image later */}
           <img
             src="https://illustrations.popsy.co/gray/work-from-home.svg"
             alt="illustration"
             className="w-full max-w-xs mx-auto"
           />
 
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 className="text-xl font-semibold text-gray-900">
             Work. Earn. Grow.
           </h2>
 
@@ -52,10 +64,10 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* RIGHT SIDE (LOGIN CARD) */}
+      {/* RIGHT SIDE */}
       <div className="flex w-full lg:w-1/2 items-center justify-center px-6">
 
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6">
+        <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
 
           {/* Header */}
           <div className="space-y-1">
@@ -68,28 +80,67 @@ export default function LoginPage() {
           </div>
 
           {/* Inputs */}
-          <div className="space-y-4">
+          <div className="space-y-5">
 
+            {/* Email */}
             <div className="space-y-1">
               <label className="text-sm text-gray-700">Email</label>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                className="w-full h-11 px-4 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#7FA37F] focus:border-[#7FA37F]"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+
+              <div className="relative">
+                <Mail
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  className="w-full h-11 pl-10 pr-4 rounded-lg 
+                  bg-white 
+                  border border-gray-400 
+                  text-gray-800 
+                  placeholder-gray-400
+                  shadow-sm
+                  focus:outline-none 
+                  focus:ring-2 focus:ring-[#7FA37F] 
+                  focus:border-[#7FA37F] 
+                  transition"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
             </div>
 
+            {/* Password */}
             <div className="space-y-1">
               <label className="text-sm text-gray-700">Password</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                className="w-full h-11 px-4 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#7FA37F] focus:border-[#7FA37F]"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="w-full h-11 pl-4 pr-10 rounded-lg 
+                  bg-white 
+                  border border-gray-400 
+                  text-gray-800 
+                  placeholder-gray-400
+                  shadow-sm
+                  focus:outline-none 
+                  focus:ring-2 focus:ring-[#7FA37F] 
+                  focus:border-[#7FA37F] 
+                  transition"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
           </div>
@@ -97,9 +148,16 @@ export default function LoginPage() {
           {/* Button */}
           <button
             onClick={handleLogin}
-            className="w-full h-11 rounded-lg bg-[#7FA37F] hover:bg-[#6E916E] text-white font-medium transition"
+            disabled={loading || !email || !password}
+            className="w-full h-11 rounded-lg 
+            bg-[#7FA37F] 
+            hover:bg-[#6E916E] 
+            disabled:bg-gray-300 
+            text-white 
+            font-medium 
+            transition"
           >
-            Continue
+            {loading ? "Signing in..." : "Continue"}
           </button>
 
           {/* Footer */}
