@@ -1,12 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const gig = require("../controllers/gig.controller");
-const authMiddleware = require("../middleware/auth.middleware");
 
-// create gig (client only)
-router.post("/", authMiddleware, gig.createGig);
+// ✅ IMPORT FULL CONTROLLER OBJECT
+const gigController = require("../controllers/gig.controller");
 
-// get all gigs (public/student)
-router.get("/", gig.getGigs);
+// ✅ ROUTES (safe access)
+router.post("/", gigController.createGig);
+router.get("/", gigController.getAllGigs);
 
 module.exports = router;
+
+console.log("Controller:", gigController);

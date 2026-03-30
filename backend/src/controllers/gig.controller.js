@@ -37,23 +37,47 @@ exports.createGig = async (req, res) => {
 };
 
 // ================= GET ALL GIGS =================
-exports.getGigs = async (req, res) => {
-  const { location } = req.query;
-
+exports.getAllGigs = async (req, res) => {
   try {
-    let query = "SELECT * FROM gigs";
-    let values = [];
+    const { search, location, page, limit } = req.query;
 
-    if (location) {
-      query += " WHERE location ILIKE $1";
-      values.push(`%${location}%`);
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+
+    let query = `SELECT * FROM gigs WHERE 1=1`;
+    let values = [];
+    let index = 1;
+
+    // 🔍 Search (title)
+    if (search) {
+      query += ` AND LOWER(title) LIKE LOWER($${index})`;
+      values.push(`%${search}%`);
+      index++;
     }
+
+    // 📍 Location filter
+    if (location) {
+      query += ` AND LOWER(location) LIKE LOWER($${index})`;
+      values.push(`%${location}%`);
+      index++;
+    }
+
+    // 📄 Pagination
+    const offset = (pageNum - 1) * limitNum;
+
+    query += ` LIMIT $${index} OFFSET $${index + 1}`;
+    values.push(limitNum, offset);
 
     const result = await pool.query(query, values);
 
-    res.json(result.rows);
+    res.json({
+      gigs: result.rows,
+      page: pageNum,
+      limit: limitNum,
+    });
 
   } catch (err) {
+    console.error("GIG ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
