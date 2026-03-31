@@ -44,7 +44,7 @@ exports.getAllGigs = async (req, res) => {
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 10;
 
-    let query = `SELECT * FROM gigs WHERE 1=1`;
+    let query = `SELECT * FROM gigs WHERE status = 'published'`;
     let values = [];
     let index = 1;
 
