@@ -205,7 +205,6 @@ export default function ClientDashboard() {
                           </span>
                         </div>
 
-                        {/* ACTION BUTTONS */}
                         {app.status === "applied" && (
                           <div className="flex gap-2">
                             <button
