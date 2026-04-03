@@ -17,7 +17,10 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
 
-  // 🔁 Fetch gigs from backend (with filters)
+  const [page, setPage] = useState(1);
+  const limit = 4; // gigs per page
+
+  // 🔁 Fetch gigs from backend
   const fetchGigs = async () => {
     try {
       setLoading(true);
@@ -27,11 +30,12 @@ export default function DashboardPage() {
       if (search) params.append("search", search);
       if (locationFilter) params.append("location", locationFilter);
 
+      params.append("page", String(page));
+      params.append("limit", String(limit));
+
       const res = await api.get(`/gigs?${params.toString()}`);
 
-      const gigsArray = Array.isArray(res?.data?.gigs)
-        ? res.data.gigs
-        : [];
+      const gigsArray = res?.data?.gigs || [];
 
       setGigs(gigsArray);
     } catch (err) {
@@ -42,13 +46,18 @@ export default function DashboardPage() {
     }
   };
 
-  // 🔁 Call API whenever filters change
+  // 🔁 Fetch when filters/page change
   useEffect(() => {
-    const delayDebounce = setTimeout(() => {
+    const delay = setTimeout(() => {
       fetchGigs();
-    }, 400); // debounce
+    }, 300);
 
-    return () => clearTimeout(delayDebounce);
+    return () => clearTimeout(delay);
+  }, [search, locationFilter, page]);
+
+  // 🔁 Reset page when filters change
+  useEffect(() => {
+    setPage(1);
   }, [search, locationFilter]);
 
   return (
@@ -60,15 +69,12 @@ export default function DashboardPage() {
 
         {/* Filters */}
         <div className="bg-white p-4 rounded-xl border border-green-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4">
-          
           <input
             type="text"
             placeholder="Search gigs..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 p-2 border border-green-200 rounded-md 
-                       bg-white text-gray-800 placeholder-gray-400
-                       focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="flex-1 p-2 border border-green-200 rounded-md bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
 
           <input
@@ -76,9 +82,7 @@ export default function DashboardPage() {
             placeholder="Filter by location..."
             value={locationFilter}
             onChange={(e) => setLocationFilter(e.target.value)}
-            className="flex-1 p-2 border border-green-200 rounded-md 
-                       bg-white text-gray-800 placeholder-gray-400
-                       focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="flex-1 p-2 border border-green-200 rounded-md bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
 
@@ -121,6 +125,45 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* ✅ PAGINATION CONTROLS */}
+        {!loading && gigs.length > 0 && (
+          <div className="flex justify-between items-center mt-6">
+            
+            {/* Previous */}
+            <button
+              disabled={page === 1}
+              onClick={() => setPage((prev) => prev - 1)}
+              className={`px-4 py-2 rounded-md text-sm
+                ${
+                  page === 1
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-green-600 text-white hover:bg-green-700"
+                }`}
+            >
+              Previous
+            </button>
+
+            {/* Page Info */}
+            <span className="text-sm text-gray-700">
+              Page {page}
+            </span>
+
+            {/* Next */}
+            <button
+              disabled={gigs.length < limit}
+              onClick={() => setPage((prev) => prev + 1)}
+              className={`px-4 py-2 rounded-md text-sm
+                ${
+                  gigs.length < limit
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-green-600 text-white hover:bg-green-700"
+                }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

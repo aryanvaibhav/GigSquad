@@ -215,8 +215,8 @@ exports.getMyApplications = async (req, res) => {
     );
 
     if (student.rows.length === 0) {
-      return res.status(400).json({ message: "Student profile not found" });
-    }
+  return res.json([]); // return empty instead of error
+}
 
     const student_id = student.rows[0].id;
 
