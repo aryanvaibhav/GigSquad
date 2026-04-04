@@ -4,9 +4,6 @@ module.exports = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    // 🔍 Debug safely
-    console.log("AUTH HEADER:", authHeader);
-
     if (!authHeader) {
       return res.status(401).json({ message: "No token provided" });
     }
@@ -23,7 +20,6 @@ module.exports = (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error("AUTH ERROR:", err.message);
     return res.status(401).json({ message: "Unauthorized" });
   }
 };

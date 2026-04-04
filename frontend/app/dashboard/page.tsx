@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import toast from "react-hot-toast";
 
 type Gig = {
   id: string;
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string | null>(null);
+  const [notified, setNotified] = useState<string[]>([]);
 
   // 🔁 Fetch gigs
   const fetchGigs = async () => {
@@ -30,7 +32,7 @@ export default function DashboardPage() {
       const res = await api.get("/gigs");
       setGigs(res?.data?.gigs || []);
     } catch (err) {
-      console.error("Gig fetch error:", err);
+      console.error(err);
       setGigs([]);
     }
   };
@@ -47,18 +49,17 @@ export default function DashboardPage() {
       setApplications(data);
     } catch (err) {
       console.error("Application fetch error:", err);
-      setApplications([]);
     }
   };
 
-  // 🚀 Apply to gig
+  // 🚀 Apply
   const handleApply = async (gigId: string) => {
     try {
       setApplying(gigId);
 
       await api.post(`/gigs/${gigId}/apply`);
+      toast.success("Applied successfully");
 
-      // optimistic update
       setApplications((prev) => [
         ...prev,
         {
@@ -68,7 +69,8 @@ export default function DashboardPage() {
         },
       ]);
     } catch (err) {
-      console.error("Apply failed:", err);
+      toast.error("Failed to apply");
+      console.error(err);
     } finally {
       setApplying(null);
     }
@@ -91,6 +93,32 @@ export default function DashboardPage() {
     load();
   }, []);
 
+  // 🔁 Polling
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchApplications();
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 🔔 Notifications
+  useEffect(() => {
+    applications.forEach((app) => {
+      if (notified.includes(app.id)) return;
+
+      if (app.status === "accepted") {
+        toast.success("🎉 You got selected!");
+        setNotified((prev) => [...prev, app.id]);
+      }
+
+      if (app.status === "rejected") {
+        toast.error("❌ Application rejected");
+        setNotified((prev) => [...prev, app.id]);
+      }
+    });
+  }, [applications]);
+
   return (
     <div className="min-h-screen bg-green-50 p-6">
       <div className="max-w-5xl mx-auto">
@@ -98,17 +126,7 @@ export default function DashboardPage() {
           Find Gigs
         </h1>
 
-        {loading && (
-          <div className="text-center text-gray-600">
-            Loading gigs...
-          </div>
-        )}
-
-        {!loading && gigs.length === 0 && (
-          <div className="text-center text-gray-600">
-            No gigs found
-          </div>
-        )}
+        {loading && <div className="text-center">Loading...</div>}
 
         <div className="grid md:grid-cols-2 gap-4">
           {gigs.map((gig) => {
@@ -118,17 +136,15 @@ export default function DashboardPage() {
             return (
               <div
                 key={gig.id}
-                className="bg-white p-4 rounded-xl border border-green-200 shadow-sm"
+                className="bg-white p-4 rounded-xl border shadow-sm"
               >
-                <h2 className="text-lg font-medium text-gray-800">
-                  {gig.title}
-                </h2>
+                <h2 className="text-lg font-medium">{gig.title}</h2>
 
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500">
                   📍 {gig.location}
                 </p>
 
-                <p className="text-sm font-medium mt-1 text-gray-700">
+                <p className="text-sm mt-1">
                   ₹{gig.pay_per_day}/day
                 </p>
 
