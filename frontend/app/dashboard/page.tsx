@@ -120,15 +120,32 @@ export default function DashboardPage() {
   }, [applications]);
 
   return (
-    <div className="min-h-screen bg-green-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-semibold text-green-800 mb-6">
-          Find Gigs
-        </h1>
+    <div className="min-h-screen bg-green-50 text-gray-900 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* HEADER */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Find Gigs</h1>
+          <p className="text-gray-600 text-sm">
+            Browse and apply to gigs near you
+          </p>
+        </div>
 
-        {loading && <div className="text-center">Loading...</div>}
+        {/* LOADING */}
+        {loading && (
+          <div className="text-center text-gray-600 mt-10">
+            Loading gigs...
+          </div>
+        )}
 
-        <div className="grid md:grid-cols-2 gap-4">
+        {/* EMPTY STATE */}
+        {!loading && gigs.length === 0 && (
+          <div className="text-center text-gray-500 mt-10">
+            No gigs available right now.
+          </div>
+        )}
+
+        {/* GRID */}
+        <div className="grid md:grid-cols-2 gap-6">
           {gigs.map((gig) => {
             const status = getStatus(gig.id);
             const isLoading = applying === gig.id;
@@ -136,42 +153,48 @@ export default function DashboardPage() {
             return (
               <div
                 key={gig.id}
-                className="bg-white p-4 rounded-xl border shadow-sm"
+                className="bg-white p-5 rounded-2xl shadow-md border border-gray-200 hover:shadow-lg transition"
               >
-                <h2 className="text-lg font-medium">{gig.title}</h2>
+                {/* TITLE */}
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {gig.title}
+                </h2>
 
-                <p className="text-sm text-gray-500">
+                {/* LOCATION */}
+                <p className="text-sm text-gray-600 mt-1">
                   📍 {gig.location}
                 </p>
 
-                <p className="text-sm mt-1">
+                {/* PAY */}
+                <p className="text-sm mt-2 font-medium text-gray-800">
                   ₹{gig.pay_per_day}/day
                 </p>
 
+                {/* BUTTON */}
                 <button
-                  disabled={!!status || isLoading}
-                  onClick={() => handleApply(gig.id)}
-                  className={`mt-3 w-full py-2 rounded-md text-white
-                    ${
-                      status === "accepted"
-                        ? "bg-green-600"
-                        : status === "rejected"
-                        ? "bg-red-500"
-                        : status === "applied"
-                        ? "bg-gray-400"
-                        : "bg-green-600 hover:bg-green-700"
-                    }`}
-                >
-                  {isLoading
-                    ? "Applying..."
-                    : status === "accepted"
-                    ? "Selected"
-                    : status === "rejected"
-                    ? "Rejected"
-                    : status === "applied"
-                    ? "Applied"
-                    : "Apply"}
-                </button>
+                disabled={!!status || isLoading}
+                onClick={() => handleApply(gig.id)}
+                className={`mt-4 w-full py-2 rounded-lg text-sm font-medium transition
+                  ${
+                    status === "accepted"
+                      ? "bg-green-600 text-white"
+                      : status === "rejected"
+                      ? "bg-red-500 text-white"
+                      : status === "applied"
+                      ? "bg-gray-400 text-white cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700"
+                  }`}
+              >
+                {isLoading
+                  ? "Applying..."
+                  : status === "accepted"
+                  ? "Selected"
+                  : status === "rejected"
+                  ? "Rejected"
+                  : status === "applied"
+                  ? "Applied"
+                  : "Apply"}
+              </button>
               </div>
             );
           })}
