@@ -1,4 +1,4 @@
-require("dotenv").config(); // ✅ MUST BE FIRST LINE
+require("dotenv").config();
 
 console.log("ENV:", process.env.DATABASE_URL);
 

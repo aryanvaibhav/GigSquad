@@ -57,7 +57,9 @@ export default function DashboardPage() {
     try {
       setApplying(gigId);
 
-      await api.post(`/gigs/${gigId}/apply`);
+      await api.post(`/applications`, {
+  gig_id: gigId,
+});
       toast.success("Applied successfully");
 
       setApplications((prev) => [
