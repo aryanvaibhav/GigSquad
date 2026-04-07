@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useAuth from "@/lib/useAuth";
 import api from "@/lib/api";
 import { toast } from "react-hot-toast";
 
@@ -21,13 +22,17 @@ type Application = {
 };
 
 export default function DashboardPage() {
+  const { loading: authLoading } = useAuth();
+
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string | null>(null);
 
-  // 🔹 Fetch gigs + applications
+  // 🔹 Fetch data ONLY after auth confirmed
   useEffect(() => {
+    if (authLoading) return;
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -49,18 +54,25 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, []);
+  }, [authLoading]);
+
+  // 🔐 Block UI until auth checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Checking authentication...
+      </div>
+    );
+  }
 
   // 🔹 Check if already applied
   const hasApplied = (gigId: string) => {
     return applications.some(
-      (app) =>
-        app.gig_id === gigId ||
-        app.gig?.id === gigId
+      (app) => app.gig_id === gigId || app.gig?.id === gigId
     );
   };
 
-  // 🔹 Apply handler (FIXED)
+  // 🔹 Apply handler
   const handleApply = async (gigId: string) => {
     try {
       setApplying(gigId);
@@ -71,11 +83,11 @@ export default function DashboardPage() {
 
       toast.success("Applied successfully");
 
-      // 🔥 Update UI instantly
+      // Update UI instantly
       setApplications((prev) => [
         ...prev,
         {
-          id: Math.random().toString(), // temp id
+          id: Math.random().toString(),
           status: "applied",
           gig_id: gigId,
         },
@@ -104,7 +116,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading...
+        Loading dashboard...
       </div>
     );
   }
@@ -140,7 +152,6 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                {/* 🔥 Apply Button */}
                 <button
                   onClick={() => handleApply(gig.id)}
                   disabled={applied || isApplying}

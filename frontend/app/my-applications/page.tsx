@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useAuth from "@/lib/useAuth";
 import api from "@/lib/api";
 
 type Application = {
@@ -15,11 +16,15 @@ type Application = {
 };
 
 export default function MyApplicationsPage() {
+  const { loading: authLoading } = useAuth();
+
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (authLoading) return;
+
     const fetchApplications = async () => {
       try {
         setLoading(true);
@@ -27,7 +32,6 @@ export default function MyApplicationsPage() {
 
         const data = res?.data;
 
-        // Safe array handling
         if (Array.isArray(data)) {
           setApplications(data);
         } else if (Array.isArray(data?.applications)) {
@@ -44,7 +48,16 @@ export default function MyApplicationsPage() {
     };
 
     fetchApplications();
-  }, []);
+  }, [authLoading]);
+
+  // 🔐 Block UI until auth checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Checking authentication...
+      </div>
+    );
+  }
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -60,31 +73,26 @@ export default function MyApplicationsPage() {
   return (
     <div className="min-h-screen bg-green-50 p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <h1 className="text-2xl font-semibold text-green-800 mb-6">
           My Applications
         </h1>
 
-        {/* Loading State */}
         {loading && (
           <div className="text-gray-600 text-center py-10">
             Loading applications...
           </div>
         )}
 
-        {/* Error State */}
         {!loading && error && (
           <div className="text-red-500 text-center py-10">{error}</div>
         )}
 
-        {/* Empty State */}
         {!loading && !error && applications.length === 0 && (
           <div className="text-gray-600 text-center py-10">
             No applications yet
           </div>
         )}
 
-        {/* Applications List */}
         <div className="space-y-4">
           {!loading &&
             !error &&
@@ -108,7 +116,6 @@ export default function MyApplicationsPage() {
                     </p>
                   </div>
 
-                  {/* Status Badge */}
                   <span
                     className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${getStatusStyle(
                       app.status
