@@ -29,7 +29,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string | null>(null);
 
-  // 🔹 Fetch data ONLY after auth confirmed
+  // 🔹 Fetch data safely
   useEffect(() => {
     if (authLoading) return;
 
@@ -42,11 +42,33 @@ export default function DashboardPage() {
           api.get("/applications/me"),
         ]);
 
-        setGigs(gigRes.data || []);
-        setApplications(appRes.data || []);
+        // 🔥 SAFE GIG HANDLING (FIXED)
+        const gigData = gigRes.data;
+
+        if (Array.isArray(gigData)) {
+          setGigs(gigData);
+        } else if (Array.isArray(gigData?.gigs)) {
+          setGigs(gigData.gigs);
+        } else if (Array.isArray(gigData?.data)) {
+          setGigs(gigData.data);
+        } else {
+          console.log("Unexpected gigs format:", gigData);
+          setGigs([]);
+        }
+
+        // 🔥 SAFE APPLICATION HANDLING
+        const appData = appRes.data;
+
+        if (Array.isArray(appData)) {
+          setApplications(appData);
+        } else if (Array.isArray(appData?.applications)) {
+          setApplications(appData.applications);
+        } else {
+          setApplications([]);
+        }
 
       } catch (err) {
-        console.error(err);
+        console.error("DASHBOARD ERROR:", err);
         toast.error("Failed to load dashboard");
       } finally {
         setLoading(false);
@@ -83,7 +105,6 @@ export default function DashboardPage() {
 
       toast.success("Applied successfully");
 
-      // Update UI instantly
       setApplications((prev) => [
         ...prev,
         {
@@ -128,50 +149,58 @@ export default function DashboardPage() {
           Available Gigs
         </h1>
 
+        {/* 🔥 EMPTY STATE */}
+        {gigs.length === 0 && (
+          <div className="text-gray-600 text-center py-10">
+            No gigs available
+          </div>
+        )}
+
         <div className="grid gap-4">
-          {gigs.map((gig) => {
-            const applied = hasApplied(gig.id);
-            const isApplying = applying === gig.id;
+          {Array.isArray(gigs) &&
+            gigs.map((gig) => {
+              const applied = hasApplied(gig.id);
+              const isApplying = applying === gig.id;
 
-            return (
-              <div
-                key={gig.id}
-                className="bg-white p-5 rounded-xl shadow-sm border border-green-100 flex justify-between items-center"
-              >
-                <div>
-                  <h2 className="text-lg font-medium text-gray-800">
-                    {gig.title}
-                  </h2>
-
-                  <p className="text-sm text-gray-500 mt-1">
-                    📍 {gig.location}
-                  </p>
-
-                  <p className="text-sm text-gray-700 mt-1 font-medium">
-                    ₹{gig.pay_per_day} / day
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => handleApply(gig.id)}
-                  disabled={applied || isApplying}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                    applied
-                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                      : isApplying
-                      ? "bg-green-300 text-white"
-                      : "bg-green-600 text-white hover:bg-green-700"
-                  }`}
+              return (
+                <div
+                  key={gig.id}
+                  className="bg-white p-5 rounded-xl shadow-sm border border-green-100 flex justify-between items-center"
                 >
-                  {applied
-                    ? "Applied"
-                    : isApplying
-                    ? "Applying..."
-                    : "Apply"}
-                </button>
-              </div>
-            );
-          })}
+                  <div>
+                    <h2 className="text-lg font-medium text-gray-800">
+                      {gig.title}
+                    </h2>
+
+                    <p className="text-sm text-gray-500 mt-1">
+                      📍 {gig.location}
+                    </p>
+
+                    <p className="text-sm text-gray-700 mt-1 font-medium">
+                      ₹{gig.pay_per_day} / day
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => handleApply(gig.id)}
+                    disabled={applied || isApplying}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      applied
+                        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                        : isApplying
+                        ? "bg-green-300 text-white"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
+                  >
+                    {applied
+                      ? "Applied"
+                      : isApplying
+                      ? "Applying..."
+                      : "Apply"}
+                  </button>
+                </div>
+              );
+            })}
         </div>
       </div>
     </div>

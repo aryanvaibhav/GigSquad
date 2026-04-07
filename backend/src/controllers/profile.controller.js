@@ -1,5 +1,3 @@
-console.log("Student profile API hit"); 
-
 const pool = require("../config/db");
 
 // ================= CREATE STUDENT PROFILE =================

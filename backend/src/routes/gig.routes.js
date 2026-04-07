@@ -9,5 +9,3 @@ router.post("/", gigController.createGig);
 router.get("/", gigController.getAllGigs);
 
 module.exports = router;
-
-console.log("Controller:", gigController);
