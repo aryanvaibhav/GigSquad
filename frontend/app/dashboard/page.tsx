@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import toast from "react-hot-toast";
+import { toast } from "react-hot-toast";
 
 type Gig = {
   id: string;
@@ -14,7 +14,8 @@ type Gig = {
 type Application = {
   id: string;
   status: string;
-  gig: {
+  gig_id?: string;
+  gig?: {
     id: string;
   };
 };
@@ -24,179 +25,139 @@ export default function DashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string | null>(null);
-  const [notified, setNotified] = useState<string[]>([]);
 
-  // 🔁 Fetch gigs
-  const fetchGigs = async () => {
-    try {
-      const res = await api.get("/gigs");
-      setGigs(res?.data?.gigs || []);
-    } catch (err) {
-      console.error(err);
-      setGigs([]);
-    }
+  // 🔹 Fetch gigs + applications
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        const [gigRes, appRes] = await Promise.all([
+          api.get("/gigs"),
+          api.get("/applications/me"),
+        ]);
+
+        setGigs(gigRes.data || []);
+        setApplications(appRes.data || []);
+
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // 🔹 Check if already applied
+  const hasApplied = (gigId: string) => {
+    return applications.some(
+      (app) =>
+        app.gig_id === gigId ||
+        app.gig?.id === gigId
+    );
   };
 
-  // 🔁 Fetch applications
-  const fetchApplications = async () => {
-    try {
-      const res = await api.get("/applications/me");
-
-      const data = Array.isArray(res?.data)
-        ? res.data
-        : res?.data?.applications || [];
-
-      setApplications(data);
-    } catch (err) {
-      console.error("Application fetch error:", err);
-    }
-  };
-
-  // 🚀 Apply
+  // 🔹 Apply handler (FIXED)
   const handleApply = async (gigId: string) => {
     try {
       setApplying(gigId);
 
       await api.post(`/applications`, {
-  gig_id: gigId,
-});
+        gig_id: gigId,
+      });
+
       toast.success("Applied successfully");
 
+      // 🔥 Update UI instantly
       setApplications((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: Math.random().toString(), // temp id
           status: "applied",
-          gig: { id: gigId },
+          gig_id: gigId,
         },
       ]);
-    } catch (err) {
-      toast.error("Failed to apply");
-      console.error(err);
+
+    } catch (err: any) {
+      const message = err.response?.data?.message;
+
+      if (message === "Already applied") {
+        toast.error("You have already applied to this gig");
+      } else if (message === "Gig is full") {
+        toast.error("No slots available");
+      } else if (message === "Student profile not found") {
+        toast.error("Please complete your profile first");
+      } else {
+        toast.error("Something went wrong");
+      }
+
+      console.log("ERROR:", message);
+
     } finally {
       setApplying(null);
     }
   };
 
-  // helper
-  const getStatus = (gigId: string) => {
-    return applications.find((a) => a.gig?.id === gigId)?.status;
-  };
-
-  // 🔁 Initial load
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      await fetchGigs();
-      await fetchApplications();
-      setLoading(false);
-    };
-
-    load();
-  }, []);
-
-  // 🔁 Polling
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchApplications();
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // 🔔 Notifications
-  useEffect(() => {
-    applications.forEach((app) => {
-      if (notified.includes(app.id)) return;
-
-      if (app.status === "accepted") {
-        toast.success("🎉 You got selected!");
-        setNotified((prev) => [...prev, app.id]);
-      }
-
-      if (app.status === "rejected") {
-        toast.error("❌ Application rejected");
-        setNotified((prev) => [...prev, app.id]);
-      }
-    });
-  }, [applications]);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-green-50 text-gray-900 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* HEADER */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Find Gigs</h1>
-          <p className="text-gray-600 text-sm">
-            Browse and apply to gigs near you
-          </p>
-        </div>
+    <div className="min-h-screen bg-green-50 p-6">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-2xl font-semibold text-green-800 mb-6">
+          Available Gigs
+        </h1>
 
-        {/* LOADING */}
-        {loading && (
-          <div className="text-center text-gray-600 mt-10">
-            Loading gigs...
-          </div>
-        )}
-
-        {/* EMPTY STATE */}
-        {!loading && gigs.length === 0 && (
-          <div className="text-center text-gray-500 mt-10">
-            No gigs available right now.
-          </div>
-        )}
-
-        {/* GRID */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid gap-4">
           {gigs.map((gig) => {
-            const status = getStatus(gig.id);
-            const isLoading = applying === gig.id;
+            const applied = hasApplied(gig.id);
+            const isApplying = applying === gig.id;
 
             return (
               <div
                 key={gig.id}
-                className="bg-white p-5 rounded-2xl shadow-md border border-gray-200 hover:shadow-lg transition"
+                className="bg-white p-5 rounded-xl shadow-sm border border-green-100 flex justify-between items-center"
               >
-                {/* TITLE */}
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {gig.title}
-                </h2>
+                <div>
+                  <h2 className="text-lg font-medium text-gray-800">
+                    {gig.title}
+                  </h2>
 
-                {/* LOCATION */}
-                <p className="text-sm text-gray-600 mt-1">
-                  📍 {gig.location}
-                </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    📍 {gig.location}
+                  </p>
 
-                {/* PAY */}
-                <p className="text-sm mt-2 font-medium text-gray-800">
-                  ₹{gig.pay_per_day}/day
-                </p>
+                  <p className="text-sm text-gray-700 mt-1 font-medium">
+                    ₹{gig.pay_per_day} / day
+                  </p>
+                </div>
 
-                {/* BUTTON */}
+                {/* 🔥 Apply Button */}
                 <button
-                disabled={!!status || isLoading}
-                onClick={() => handleApply(gig.id)}
-                className={`mt-4 w-full py-2 rounded-lg text-sm font-medium transition
-                  ${
-                    status === "accepted"
-                      ? "bg-green-600 text-white"
-                      : status === "rejected"
-                      ? "bg-red-500 text-white"
-                      : status === "applied"
-                      ? "bg-gray-400 text-white cursor-not-allowed"
+                  onClick={() => handleApply(gig.id)}
+                  disabled={applied || isApplying}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    applied
+                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                      : isApplying
+                      ? "bg-green-300 text-white"
                       : "bg-green-600 text-white hover:bg-green-700"
                   }`}
-              >
-                {isLoading
-                  ? "Applying..."
-                  : status === "accepted"
-                  ? "Selected"
-                  : status === "rejected"
-                  ? "Rejected"
-                  : status === "applied"
-                  ? "Applied"
-                  : "Apply"}
-              </button>
+                >
+                  {applied
+                    ? "Applied"
+                    : isApplying
+                    ? "Applying..."
+                    : "Apply"}
+                </button>
               </div>
             );
           })}
