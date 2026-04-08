@@ -37,10 +37,17 @@ app.get("/api/v1/protected", authMiddleware, (req, res) => {
   });
 });
 
-// ================= DB CONNECTION =================
-pool.connect()
+// ================= DB CONNECTION (SAFE FIX) =================
+
+// ✅ Use query instead of connect (auto release)
+pool.query("SELECT 1")
   .then(() => console.log("Database connected"))
-  .catch(err => console.error("DB Error:", err));
+  .catch((err) => console.error("DB Error:", err.message));
+
+// ✅ Prevent crash on unexpected DB errors
+pool.on("error", (err) => {
+  console.error("Unexpected DB error:", err.message);
+});
 
 // ================= SERVER =================
 const PORT = process.env.PORT || 5000;

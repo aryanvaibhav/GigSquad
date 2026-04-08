@@ -1,7 +1,9 @@
 {
+  "watch": ["src"],
   "ignore": [
     "node_modules",
     ".git",
-    "*.log"
+    "*.log",
+    ".env"
   ]
 }
