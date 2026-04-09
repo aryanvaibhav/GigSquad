@@ -43,7 +43,13 @@ export default function RegisterPage() {
       localStorage.setItem("token", data.token);
 
       toast.success("Account created successfully");
-      router.push("/dashboard");
+      const userType = data.user?.type;
+
+    if (userType === "client") {
+    router.push("/client-dashboard");
+    } else {
+    router.push("/dashboard");
+    }
 
     } catch (err: any) {
       const message = err.response?.data?.message;

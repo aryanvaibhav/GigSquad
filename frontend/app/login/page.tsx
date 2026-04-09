@@ -30,7 +30,13 @@ export default function LoginPage() {
 
       if (res.ok) {
         localStorage.setItem("token", data.token);
-        router.push("/dashboard");
+        const userType = data.user?.type;
+
+        if (userType === "client") {
+          router.push("/client-dashboard");
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         alert(data.message);
       }
