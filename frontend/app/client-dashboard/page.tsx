@@ -10,6 +10,7 @@ type Gig = {
   title: string;
   location: string;
   pay_per_day: number;
+  total_slots: number;
   created_by?: string;
 };
 
@@ -17,13 +18,6 @@ export default function ClientDashboard() {
   const { loading: authLoading } = useAuth();
 
   const [gigs, setGigs] = useState<Gig[]>([]);
-
-  const userId =
-    typeof window !== "undefined"
-        ? JSON.parse(localStorage.getItem("user") || "{}")?.id
-        : null;
-
-  const myGigs = gigs.filter((g) => g.created_by === userId);
   const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
@@ -34,6 +28,12 @@ export default function ClientDashboard() {
   });
 
   const [creating, setCreating] = useState(false);
+
+  // 🔹 Get current user
+  const user =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "{}")
+      : null;
 
   // 🔹 Fetch gigs
   useEffect(() => {
@@ -65,6 +65,9 @@ export default function ClientDashboard() {
     fetchGigs();
   }, [authLoading]);
 
+  // 🔹 Filter only client gigs
+  const myGigs = gigs.filter((g) => g.created_by === user?.id);
+
   // 🔹 Handle input
   const handleChange = (e: any) => {
     setForm({
@@ -82,20 +85,34 @@ export default function ClientDashboard() {
       return;
     }
 
+    const pay = Number(form.pay_per_day);
+    const slots = parseInt(form.total_slots);
+
+    // 🔥 VALIDATION
+    if (isNaN(pay) || pay <= 0) {
+      toast.error("Pay must be a valid number");
+      return;
+    }
+
+    if (isNaN(slots) || slots < 1) {
+      toast.error("Slots must be a positive integer");
+      return;
+    }
+
     try {
       setCreating(true);
 
       const res = await api.post("/gigs", {
         title: form.title,
         location: form.location,
-        pay_per_day: Number(form.pay_per_day),
-        total_slots: Number(form.total_slots),
+        pay_per_day: pay,
+        total_slots: slots,
       });
 
       toast.success("Gig created successfully");
 
-      // Add new gig to UI
-      setGigs((prev) => [res.data, ...prev]);
+      // Update UI instantly
+      setGigs((prev) => [res.data.gig || res.data, ...prev]);
 
       // Reset form
       setForm({
@@ -129,7 +146,7 @@ export default function ClientDashboard() {
           Client Dashboard
         </h1>
 
-        {/* 🔥 Create Gig Form */}
+        {/* 🔥 CREATE GIG FORM */}
         <form
           onSubmit={handleCreateGig}
           className="bg-white p-6 rounded-xl shadow-sm border border-green-100 mb-8 space-y-4"
@@ -171,6 +188,8 @@ export default function ClientDashboard() {
             placeholder="Total slots"
             value={form.total_slots}
             onChange={handleChange}
+            min="1"
+            step="1"
             className="w-full px-4 py-2 border rounded-lg text-gray-800"
           />
 
@@ -187,7 +206,7 @@ export default function ClientDashboard() {
           </button>
         </form>
 
-        {/* 🔥 Gigs List */}
+        {/* 🔥 MY GIGS */}
         <div>
           <h2 className="text-lg font-medium text-gray-800 mb-4">
             Your Gigs
@@ -195,12 +214,12 @@ export default function ClientDashboard() {
 
           {loading && <p>Loading gigs...</p>}
 
-          {!loading && gigs.length === 0 && (
+          {!loading && myGigs.length === 0 && (
             <p className="text-gray-500">No gigs created yet</p>
           )}
 
           <div className="grid gap-4">
-            {gigs.map((gig) => (
+            {myGigs.map((gig) => (
               <div
                 key={gig.id}
                 className="bg-white p-5 rounded-xl shadow-sm border border-green-100"
@@ -215,6 +234,10 @@ export default function ClientDashboard() {
 
                 <p className="text-sm text-gray-700 mt-1 font-medium">
                   ₹{gig.pay_per_day} / day
+                </p>
+
+                <p className="text-sm text-gray-600 mt-1">
+                  Slots: {gig.total_slots}
                 </p>
               </div>
             ))}
