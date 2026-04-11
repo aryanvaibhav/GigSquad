@@ -20,6 +20,6 @@ router.get("/me", authMiddleware, getMyApplications);
 router.get("/:gig_id", authMiddleware, getApplicants);
 
 // ✅ CLIENT: UPDATE STATUS
-router.patch("/:id", authMiddleware, updateApplicationStatus);
+router.patch('/status/:id', authMiddleware, updateApplicationStatus);
 
 module.exports = router;

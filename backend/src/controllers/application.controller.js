@@ -12,7 +12,7 @@ exports.applyToGig = async (req, res) => {
       return res.status(400).json({ message: "gig_id is required" });
     }
 
-    // 1. Get student profile
+    // Get student profile
     const student = await db.query(
       "SELECT id FROM student_profiles WHERE user_id = $1",
       [user_id]
@@ -24,7 +24,7 @@ exports.applyToGig = async (req, res) => {
 
     const student_id = student.rows[0].id;
 
-    // 2. Check gig exists
+    // Check gig exists
     const gig = await db.query(
       "SELECT * FROM gigs WHERE id = $1",
       [gig_id]
@@ -36,12 +36,12 @@ exports.applyToGig = async (req, res) => {
 
     const gigData = gig.rows[0];
 
-    // 3. Check slots
+    // Slot check
     if (gigData.filled_slots >= gigData.slots) {
       return res.status(400).json({ message: "Gig is full" });
     }
 
-    // 4. Prevent duplicate
+    // Prevent duplicate
     const existing = await db.query(
       "SELECT * FROM gig_applications WHERE gig_id=$1 AND student_id=$2",
       [gig_id, student_id]
@@ -51,7 +51,7 @@ exports.applyToGig = async (req, res) => {
       return res.status(400).json({ message: "Already applied" });
     }
 
-    // 5. Insert
+    // Insert application
     const result = await db.query(
       `INSERT INTO gig_applications (gig_id, student_id)
        VALUES ($1, $2)
@@ -70,6 +70,7 @@ exports.applyToGig = async (req, res) => {
   }
 };
 
+
 /**
  * GET APPLICANTS (Client)
  */
@@ -78,7 +79,12 @@ exports.getApplicants = async (req, res) => {
     const { gig_id } = req.params;
     const user_id = req.user.id;
 
-    // 1. Verify ownership
+    // Role check
+    if (req.user.type !== "client") {
+      return res.status(403).json({ message: "Only clients allowed" });
+    }
+
+    // Verify ownership
     const gig = await db.query(
       `SELECT g.id, cp.user_id
        FROM gigs g
@@ -95,13 +101,14 @@ exports.getApplicants = async (req, res) => {
       return res.status(403).json({ message: "Not your gig" });
     }
 
-    // 2. Fetch applicants
+    // Fetch applicants
     const result = await db.query(
       `SELECT 
         ga.id,
         ga.status,
         u.email,
-        sp.skills
+        sp.skills,
+        sp.college_name
        FROM gig_applications ga
        JOIN student_profiles sp ON ga.student_id = sp.id
        JOIN users u ON sp.user_id = u.id
@@ -117,6 +124,7 @@ exports.getApplicants = async (req, res) => {
   }
 };
 
+
 /**
  * ACCEPT / REJECT APPLICATION (Client)
  */
@@ -130,12 +138,17 @@ exports.updateApplicationStatus = async (req, res) => {
     const { status } = req.body;
     const user_id = req.user.id;
 
+    // Role check
+    if (req.user.type !== "client") {
+      throw new Error("Only clients can perform this action");
+    }
+
     // Validate status
     if (!["confirmed", "rejected"].includes(status)) {
       throw new Error("Invalid status");
     }
 
-    // 1. Get application + ownership
+    // Get application + ownership
     const app = await client.query(
       `SELECT ga.*, g.client_id, cp.user_id
        FROM gig_applications ga
@@ -151,12 +164,17 @@ exports.updateApplicationStatus = async (req, res) => {
 
     const application = app.rows[0];
 
-    // Security check
+    // Ownership check
     if (application.user_id !== user_id) {
       throw new Error("Not authorized");
     }
 
-    // 2. Lock gig row
+    // Prevent double confirmation
+    if (application.status === "confirmed") {
+      throw new Error("Already confirmed");
+    }
+
+    // Lock gig row
     const gig = await client.query(
       "SELECT * FROM gigs WHERE id = $1 FOR UPDATE",
       [application.gig_id]
@@ -164,7 +182,7 @@ exports.updateApplicationStatus = async (req, res) => {
 
     const gigData = gig.rows[0];
 
-    // 3. Slot logic
+    // Slot logic
     if (status === "confirmed") {
       if (gigData.filled_slots >= gigData.slots) {
         throw new Error("No slots left");
@@ -176,10 +194,11 @@ exports.updateApplicationStatus = async (req, res) => {
       );
     }
 
-    // 4. Update application
+    // Update application
     const updated = await client.query(
       `UPDATE gig_applications
-       SET status = $1
+       SET status = $1,
+           confirmed_at = CASE WHEN $1 = 'confirmed' THEN NOW() ELSE confirmed_at END
        WHERE id = $2
        RETURNING *`,
       [status, id]
@@ -201,6 +220,7 @@ exports.updateApplicationStatus = async (req, res) => {
   }
 };
 
+
 /**
  * GET MY APPLICATIONS (Student)
  */
@@ -208,19 +228,17 @@ exports.getMyApplications = async (req, res) => {
   try {
     const user_id = req.user.id;
 
-    // 1. Get student profile
     const student = await db.query(
       "SELECT id FROM student_profiles WHERE user_id = $1",
       [user_id]
     );
 
     if (student.rows.length === 0) {
-  return res.json([]); // return empty instead of error
-}
+      return res.json([]);
+    }
 
     const student_id = student.rows[0].id;
 
-    // 2. Fetch applications
     const result = await db.query(
       `SELECT 
         ga.id AS application_id,
