@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import useAuth from "@/lib/useAuth";
 import api from "@/lib/api";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 type Gig = {
   id: string;
@@ -22,14 +23,17 @@ type Application = {
 };
 
 export default function DashboardPage() {
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, user } = useAuth();
+  const router = useRouter();
 
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string | null>(null);
 
-  // 🔹 Fetch data safely
+  const isClient = user?.type === "client";
+
+  // 🔹 Fetch data
   useEffect(() => {
     if (authLoading) return;
 
@@ -37,12 +41,9 @@ export default function DashboardPage() {
       try {
         setLoading(true);
 
-        const [gigRes, appRes] = await Promise.all([
-          api.get("/gigs"),
-          api.get("/applications/me"),
-        ]);
+        const gigRes = await api.get("/gigs");
 
-        // 🔥 SAFE GIG HANDLING (FIXED)
+        // 🔥 SAFE GIG HANDLING
         const gigData = gigRes.data;
 
         if (Array.isArray(gigData)) {
@@ -56,15 +57,19 @@ export default function DashboardPage() {
           setGigs([]);
         }
 
-        // 🔥 SAFE APPLICATION HANDLING
-        const appData = appRes.data;
+        // 👇 ONLY fetch applications for STUDENTS
+        if (!isClient) {
+          const appRes = await api.get("/applications/me");
 
-        if (Array.isArray(appData)) {
-          setApplications(appData);
-        } else if (Array.isArray(appData?.applications)) {
-          setApplications(appData.applications);
-        } else {
-          setApplications([]);
+          const appData = appRes.data;
+
+          if (Array.isArray(appData)) {
+            setApplications(appData);
+          } else if (Array.isArray(appData?.applications)) {
+            setApplications(appData.applications);
+          } else {
+            setApplications([]);
+          }
         }
 
       } catch (err) {
@@ -76,7 +81,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [authLoading]);
+  }, [authLoading, isClient]);
 
   // 🔐 Block UI until auth checked
   if (authLoading) {
@@ -87,14 +92,14 @@ export default function DashboardPage() {
     );
   }
 
-  // 🔹 Check if already applied
+  // 🔹 Student helper
   const hasApplied = (gigId: string) => {
     return applications.some(
       (app) => app.gig_id === gigId || app.gig?.id === gigId
     );
   };
 
-  // 🔹 Apply handler
+  // 🔹 Apply handler (student)
   const handleApply = async (gigId: string) => {
     try {
       setApplying(gigId);
@@ -113,25 +118,33 @@ export default function DashboardPage() {
           gig_id: gigId,
         },
       ]);
-
     } catch (err: any) {
       const message = err.response?.data?.message;
 
       if (message === "Already applied") {
-        toast.error("You have already applied to this gig");
+        toast.error("You have already applied");
       } else if (message === "Gig is full") {
         toast.error("No slots available");
       } else if (message === "Student profile not found") {
-        toast.error("Please complete your profile first");
+        toast.error("Complete your profile first");
       } else {
         toast.error("Something went wrong");
       }
-
-      console.log("ERROR:", message);
-
     } finally {
       setApplying(null);
     }
+  };
+
+  // 🔹 Client navigation
+  const handleViewApplicants = (gigId: string) => {
+    console.log("Opening applicants for:", gigId);
+
+    if (!gigId) {
+      toast.error("Invalid gig ID");
+      return;
+    }
+
+    router.push(`/dashboard/gigs/${gigId}/applicants`);
   };
 
   if (loading) {
@@ -146,10 +159,9 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-green-50 p-6">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-2xl font-semibold text-green-800 mb-6">
-          Available Gigs
+          {isClient ? "Your Gigs" : "Available Gigs"}
         </h1>
 
-        {/* 🔥 EMPTY STATE */}
         {gigs.length === 0 && (
           <div className="text-gray-600 text-center py-10">
             No gigs available
@@ -157,30 +169,38 @@ export default function DashboardPage() {
         )}
 
         <div className="grid gap-4">
-          {Array.isArray(gigs) &&
-            gigs.map((gig) => {
-              const applied = hasApplied(gig.id);
-              const isApplying = applying === gig.id;
+          {gigs.map((gig) => {
+            const applied = hasApplied(gig.id);
+            const isApplying = applying === gig.id;
 
-              return (
-                <div
-                  key={gig.id}
-                  className="bg-white p-5 rounded-xl shadow-sm border border-green-100 flex justify-between items-center"
-                >
-                  <div>
-                    <h2 className="text-lg font-medium text-gray-800">
-                      {gig.title}
-                    </h2>
+            return (
+              <div
+                key={gig.id}
+                className="bg-white p-5 rounded-xl shadow-sm border border-green-100 flex justify-between items-center"
+              >
+                <div>
+                  <h2 className="text-lg font-medium text-gray-800">
+                    {gig.title}
+                  </h2>
 
-                    <p className="text-sm text-gray-500 mt-1">
-                      📍 {gig.location}
-                    </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    📍 {gig.location}
+                  </p>
 
-                    <p className="text-sm text-gray-700 mt-1 font-medium">
-                      ₹{gig.pay_per_day} / day
-                    </p>
-                  </div>
+                  <p className="text-sm text-gray-700 mt-1 font-medium">
+                    ₹{gig.pay_per_day} / day
+                  </p>
+                </div>
 
+                {/* 🔥 ROLE BASED UI */}
+                {isClient ? (
+                  <button
+                    onClick={() => handleViewApplicants(gig.id)}
+                    className="px-4 py-2 bg-black text-white rounded-lg hover:opacity-80"
+                  >
+                    View Applicants
+                  </button>
+                ) : (
                   <button
                     onClick={() => handleApply(gig.id)}
                     disabled={applied || isApplying}
@@ -198,9 +218,10 @@ export default function DashboardPage() {
                       ? "Applying..."
                       : "Apply"}
                   </button>
-                </div>
-              );
-            })}
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
