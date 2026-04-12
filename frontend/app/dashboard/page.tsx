@@ -1,29 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AxiosError } from "axios";
 import useAuth from "@/lib/useAuth";
 import api from "@/lib/api";
+import GigCard from "@/components/GigCard";
+import { Application, Gig, UserType } from "@/types";
 import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
 
-type Gig = {
-  id: string;
-  title: string;
-  location: string;
-  pay_per_day: number;
+type StoredUser = {
+  type?: UserType;
 };
 
-type Application = {
-  id: string;
-  status: string;
-  gig_id?: string;
-  gig?: {
-    id: string;
-  };
+type ApiErrorResponse = {
+  message?: string;
+};
+
+const isGigArray = (value: unknown): value is Gig[] => Array.isArray(value);
+
+const getStoredUserType = (): UserType | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedUser = localStorage.getItem("user");
+
+    if (!storedUser) {
+      return null;
+    }
+
+    const parsedUser = JSON.parse(storedUser) as StoredUser;
+
+    return parsedUser.type ?? null;
+  } catch (error) {
+    console.error("Failed to parse stored user:", error);
+    return null;
+  }
 };
 
 export default function DashboardPage() {
-  const { loading: authLoading, user } = useAuth();
+  const { loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [gigs, setGigs] = useState<Gig[]>([]);
@@ -31,49 +49,62 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string | null>(null);
 
-  const isClient = user?.type === "client";
+  const userType = getStoredUserType();
+  const isClient = userType === "client";
 
-  // 🔹 Fetch data
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading) {
+      return;
+    }
 
     const fetchData = async () => {
       try {
         setLoading(true);
 
         const gigRes = await api.get("/gigs");
+        const gigData: unknown = gigRes.data;
 
-        // 🔥 SAFE GIG HANDLING
-        const gigData = gigRes.data;
-
-        if (Array.isArray(gigData)) {
+        if (isGigArray(gigData)) {
           setGigs(gigData);
-        } else if (Array.isArray(gigData?.gigs)) {
+        } else if (
+          typeof gigData === "object" &&
+          gigData !== null &&
+          "gigs" in gigData &&
+          isGigArray(gigData.gigs)
+        ) {
           setGigs(gigData.gigs);
-        } else if (Array.isArray(gigData?.data)) {
+        } else if (
+          typeof gigData === "object" &&
+          gigData !== null &&
+          "data" in gigData &&
+          isGigArray(gigData.data)
+        ) {
           setGigs(gigData.data);
         } else {
-          console.log("Unexpected gigs format:", gigData);
+          console.log("Unexpected gigs response:", gigData);
           setGigs([]);
         }
 
-        // 👇 ONLY fetch applications for STUDENTS
         if (!isClient) {
           const appRes = await api.get("/applications/me");
-
-          const appData = appRes.data;
+          const appData: unknown = appRes.data;
 
           if (Array.isArray(appData)) {
-            setApplications(appData);
-          } else if (Array.isArray(appData?.applications)) {
-            setApplications(appData.applications);
+            setApplications(appData as Application[]);
+          } else if (
+            typeof appData === "object" &&
+            appData !== null &&
+            "applications" in appData &&
+            Array.isArray(appData.applications)
+          ) {
+            setApplications(appData.applications as Application[]);
           } else {
+            console.log("Unexpected applications response:", appData);
             setApplications([]);
           }
         }
-
-      } catch (err) {
-        console.error("DASHBOARD ERROR:", err);
+      } catch (error) {
+        console.error("Dashboard load failed:", error);
         toast.error("Failed to load dashboard");
       } finally {
         setLoading(false);
@@ -83,43 +114,32 @@ export default function DashboardPage() {
     fetchData();
   }, [authLoading, isClient]);
 
-  // 🔐 Block UI until auth checked
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Checking authentication...
-      </div>
-    );
-  }
+  const hasApplied = (gigId: string) =>
+    applications.some((application) => {
+      return application.gig_id === gigId || application.gig?.id === gigId;
+    });
 
-  // 🔹 Student helper
-  const hasApplied = (gigId: string) => {
-    return applications.some(
-      (app) => app.gig_id === gigId || app.gig?.id === gigId
-    );
-  };
-
-  // 🔹 Apply handler (student)
   const handleApply = async (gigId: string) => {
     try {
       setApplying(gigId);
 
-      await api.post(`/applications`, {
+      await api.post("/applications", {
         gig_id: gigId,
       });
 
-      toast.success("Applied successfully");
-
-      setApplications((prev) => [
-        ...prev,
+      setApplications((previousApplications) => [
+        ...previousApplications,
         {
-          id: Math.random().toString(),
+          id: `temp-${gigId}`,
           status: "applied",
           gig_id: gigId,
         },
       ]);
-    } catch (err: any) {
-      const message = err.response?.data?.message;
+
+      toast.success("Applied successfully");
+    } catch (error) {
+      const apiError = error as AxiosError<ApiErrorResponse>;
+      const message = apiError.response?.data?.message;
 
       if (message === "Already applied") {
         toast.error("You have already applied");
@@ -135,10 +155,7 @@ export default function DashboardPage() {
     }
   };
 
-  // 🔹 Client navigation
   const handleViewApplicants = (gigId: string) => {
-    console.log("Opening applicants for:", gigId);
-
     if (!gigId) {
       toast.error("Invalid gig ID");
       return;
@@ -147,9 +164,17 @@ export default function DashboardPage() {
     router.push(`/dashboard/gigs/${gigId}/applicants`);
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        Checking authentication...
+      </div>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         Loading dashboard...
       </div>
     );
@@ -157,15 +182,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-green-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-semibold text-green-800 mb-6">
+      <div className="mx-auto max-w-5xl">
+        <h1 className="mb-6 text-2xl font-semibold text-green-800">
           {isClient ? "Your Gigs" : "Available Gigs"}
         </h1>
 
         {gigs.length === 0 && (
-          <div className="text-gray-600 text-center py-10">
-            No gigs available
-          </div>
+          <div className="py-10 text-center text-gray-600">No gigs available</div>
         )}
 
         <div className="grid gap-4">
@@ -173,52 +196,43 @@ export default function DashboardPage() {
             const applied = hasApplied(gig.id);
             const isApplying = applying === gig.id;
 
+            if (isClient) {
+              return (
+                <GigCard
+                  key={gig.id}
+                  gig={gig}
+                  onViewApplicants={handleViewApplicants}
+                />
+              );
+            }
+
             return (
               <div
                 key={gig.id}
-                className="bg-white p-5 rounded-xl shadow-sm border border-green-100 flex justify-between items-center"
+                className="flex items-center justify-between rounded-xl border border-green-100 bg-white p-5 shadow-sm"
               >
                 <div>
-                  <h2 className="text-lg font-medium text-gray-800">
-                    {gig.title}
-                  </h2>
-
-                  <p className="text-sm text-gray-500 mt-1">
-                    📍 {gig.location}
-                  </p>
-
-                  <p className="text-sm text-gray-700 mt-1 font-medium">
-                    ₹{gig.pay_per_day} / day
+                  <h2 className="text-lg font-medium text-gray-800">{gig.title}</h2>
+                  <p className="mt-1 text-sm text-gray-500">{gig.location}</p>
+                  <p className="mt-1 text-sm font-medium text-gray-700">
+                    Rs.{gig.pay_per_day} / day
                   </p>
                 </div>
 
-                {/* 🔥 ROLE BASED UI */}
-                {isClient ? (
-                  <button
-                    onClick={() => handleViewApplicants(gig.id)}
-                    className="px-4 py-2 bg-black text-white rounded-lg hover:opacity-80"
-                  >
-                    View Applicants
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleApply(gig.id)}
-                    disabled={applied || isApplying}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      applied
-                        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                        : isApplying
-                        ? "bg-green-300 text-white"
-                        : "bg-green-600 text-white hover:bg-green-700"
-                    }`}
-                  >
-                    {applied
-                      ? "Applied"
+                <button
+                  type="button"
+                  onClick={() => handleApply(gig.id)}
+                  disabled={applied || isApplying}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition ${
+                    applied
+                      ? "cursor-not-allowed bg-gray-300 text-gray-500"
                       : isApplying
-                      ? "Applying..."
-                      : "Apply"}
-                  </button>
-                )}
+                        ? "bg-green-300"
+                        : "bg-green-600 hover:bg-green-700"
+                  }`}
+                >
+                  {applied ? "Applied" : isApplying ? "Applying..." : "Apply"}
+                </button>
               </div>
             );
           })}
