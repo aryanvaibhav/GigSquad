@@ -2,13 +2,32 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AxiosError } from "axios";
 import api from "@/lib/api";
 import { toast } from "react-hot-toast";
+
+type RegisterForm = {
+  email: string;
+  phone: string;
+  password: string;
+  type: "student" | "client";
+};
+
+type RegisterResponse = {
+  token?: string;
+  user?: {
+    type?: "student" | "client";
+  };
+};
+
+type ApiErrorResponse = {
+  message?: string;
+};
 
 export default function RegisterPage() {
   const router = useRouter();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<RegisterForm>({
     email: "",
     phone: "",
     password: "",
@@ -17,17 +36,22 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e: any) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      [name]:
+        name === "type" ? (value as RegisterForm["type"]) : value,
+    }));
   };
 
-  const handleRegister = async (e: any) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!form.email || !form.phone || !form.password) {
+    if (!form.email || !form.phone || !form.password || !form.type) {
       toast.error("All fields are required");
       return;
     }
@@ -35,33 +59,29 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      const res = await api.post("/auth/register", form);
-      const data = res.data;
+      const payload: RegisterForm = {
+        email: form.email,
+        password: form.password,
+        phone: form.phone,
+        type: form.type,
+      };
 
-      // ✅ Store token + user
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      const res = await api.post<RegisterResponse>("/auth/register", payload);
+
+      if (!res.data.token || !res.data.user) {
+        toast.error("Registration failed");
+        return;
+      }
+
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
 
       toast.success("Account created successfully");
-
-      const userType = data.user?.type;
-
-      // ✅ Role-based redirect
-      if (userType === "client") {
-        router.push("/client-dashboard");
-      } else {
-        router.push("/dashboard");
-      }
-
-    } catch (err: any) {
-      const message = err.response?.data?.message;
-
-      if (message?.includes("already exists")) {
-        toast.error("User already exists");
-      } else {
-        toast.error("Registration failed");
-      }
-
+      router.push("/dashboard");
+    } catch (error) {
+      const apiError = error as AxiosError<ApiErrorResponse>;
+      const message = apiError.response?.data?.message;
+      toast.error(message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -117,7 +137,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 rounded-lg text-white bg-green-600"
+            className="w-full cursor-pointer rounded-lg bg-green-600 py-2 text-white transition hover:scale-105 hover:bg-green-700 active:scale-95 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {loading ? "Creating..." : "Register"}
           </button>

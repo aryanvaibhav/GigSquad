@@ -54,10 +54,8 @@ export default function CreateGigPage() {
         slots: Number(form.slots),
       });
 
-      // Redirect to dashboard after creation
-      router.push("/client/dashboard");
-    } catch (err: any) {
-      console.error("Create gig failed:", err);
+      router.push("/dashboard");
+    } catch {
       setError("Failed to create gig");
     } finally {
       setLoading(false);
@@ -84,7 +82,7 @@ export default function CreateGigPage() {
               name="title"
               value={form.title}
               onChange={handleChange}
-              className="w-full mt-1 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full mt-1 p-2 border border-gray-300 rounded-md bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-400"
               placeholder="e.g. Campus Promotion"
             />
           </div>
@@ -97,7 +95,7 @@ export default function CreateGigPage() {
               name="location"
               value={form.location}
               onChange={handleChange}
-              className="w-full mt-1 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full mt-1 p-2 border border-gray-300 rounded-md bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-400"
               placeholder="e.g. IIT BHU"
             />
           </div>
@@ -110,7 +108,7 @@ export default function CreateGigPage() {
               name="pay_per_day"
               value={form.pay_per_day}
               onChange={handleChange}
-              className="w-full mt-1 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full mt-1 p-2 border border-gray-300 rounded-md bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-400"
             />
           </div>
 
@@ -122,7 +120,7 @@ export default function CreateGigPage() {
               name="slots"
               value={form.slots}
               onChange={handleChange}
-              className="w-full mt-1 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+              className="w-full mt-1 p-2 border border-gray-300 rounded-md bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-400"
             />
           </div>
 
@@ -130,7 +128,7 @@ export default function CreateGigPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 transition"
+            className="w-full cursor-pointer rounded-md bg-green-600 py-2 text-white transition hover:scale-105 hover:bg-green-700 active:scale-95 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {loading ? "Creating..." : "Create Gig"}
           </button>

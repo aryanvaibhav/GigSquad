@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { AxiosError } from "axios";
 import api from "@/lib/api";
 import ApplicantCard from "@/components/ApplicantCard";
-import { Applicant, ApplicationStatus } from "@/types";
+import { Applicant, ApplicationStatus, UserType } from "@/types";
 
 type ApplicantsResponse =
   | Applicant[]
@@ -16,8 +17,9 @@ type ApplicantsResponse =
 
 type ApplicantActionStatus = Extract<ApplicationStatus, "confirmed" | "rejected">;
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+type ApplicantsErrorResponse = {
+  message?: string;
+};
 
 const isApplicantArray = (value: unknown): value is Applicant[] => Array.isArray(value);
 
@@ -38,12 +40,17 @@ const normalizeApplicants = (payload: unknown): Applicant[] => {
     }
   }
 
-  console.log("Unexpected applicants response:", payload);
   return [];
 };
 
 export default function ApplicantsPage() {
   const params = useParams<{ id?: string | string[] }>();
+  const user =
+    typeof window !== "undefined"
+      ? (JSON.parse(localStorage.getItem("user") || "{}") as {
+          type?: UserType;
+        })
+      : null;
 
   const gigId = useMemo(() => {
     const routeId = params?.id;
@@ -62,16 +69,6 @@ export default function ApplicantsPage() {
 
   useEffect(() => {
     if (!gigId) {
-      setApplicants([]);
-      setErrorMessage("Invalid gig ID.");
-      setLoading(false);
-      return;
-    }
-
-    if (!UUID_PATTERN.test(gigId)) {
-      setApplicants([]);
-      setErrorMessage("Invalid gig ID.");
-      setLoading(false);
       return;
     }
 
@@ -80,21 +77,28 @@ export default function ApplicantsPage() {
         setLoading(true);
         setErrorMessage(null);
 
-        const response = await api.get(`/applications/${gigId}`);
-        console.log("Applicants API response:", response.data);
+        if (user?.type === "client") {
+          console.log("Fetching applicants for gig:", gigId);
+        }
 
+        const response = await api.get(`/applications/${gigId}`);
         setApplicants(normalizeApplicants(response.data));
       } catch (error) {
+        const apiError = error as AxiosError<ApplicantsErrorResponse>;
         console.error("Failed to fetch applicants:", error);
         setApplicants([]);
-        setErrorMessage("Failed to load applicants.");
+        if (apiError.response?.status === 403) {
+          setErrorMessage("Not authorized to view applicants");
+        } else {
+          setErrorMessage("Failed to load applicants.");
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchApplicants();
-  }, [gigId]);
+  }, [gigId, user?.type]);
 
   const handleStatusChange = async (
     applicantId: string,
@@ -114,8 +118,7 @@ export default function ApplicantsPage() {
     );
 
     try {
-      const response = await api.patch(`/applications/${applicantId}`, { status });
-      console.log("Applicant status update response:", response.data);
+      await api.patch(`/applications/${applicantId}`, { status });
     } catch (error) {
       console.error("Failed to update applicant:", error);
       setApplicants(previousApplicants);

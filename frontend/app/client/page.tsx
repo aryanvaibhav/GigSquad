@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { isValidUuid } from "@/lib/uuid";
 
 type Gig = {
   id: string;
@@ -55,6 +56,12 @@ export default function ClientDashboard() {
 
   // Fetch applications for selected gig
   const fetchApplications = async (gigId: string) => {
+    if (!isValidUuid(gigId)) {
+      setApplications([]);
+      setSelectedGig(null);
+      return;
+    }
+
     try {
       setSelectedGig(gigId);
       setAppLoading(true);

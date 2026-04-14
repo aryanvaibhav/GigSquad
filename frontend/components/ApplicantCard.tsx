@@ -47,7 +47,7 @@ export default function ApplicantCard({
           type="button"
           disabled={actionsDisabled}
           onClick={() => onStatusChange(applicant.id, "confirmed")}
-          className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="cursor-pointer rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition hover:scale-105 hover:bg-green-700 active:scale-95 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:bg-gray-300"
         >
           {isUpdating && applicant.status === "confirmed" ? "Saving..." : "Accept"}
         </button>
@@ -56,7 +56,7 @@ export default function ApplicantCard({
           type="button"
           disabled={actionsDisabled}
           onClick={() => onStatusChange(applicant.id, "rejected")}
-          className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="cursor-pointer rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white transition hover:scale-105 hover:bg-red-700 active:scale-95 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:bg-gray-300"
         >
           {isUpdating && applicant.status === "rejected" ? "Saving..." : "Reject"}
         </button>

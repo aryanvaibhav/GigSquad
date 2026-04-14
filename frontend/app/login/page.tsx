@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Eye, EyeOff } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,23 +30,14 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // ✅ Store token + user
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-
-        const userType = data.user?.type;
-
-        // ✅ Role-based redirect
-        if (userType === "client") {
-          router.push("/client-dashboard");
-        } else {
-          router.push("/dashboard");
-        }
+        router.push("/dashboard");
       } else {
-        alert(data.message);
+        toast.error(data.message || "Login failed");
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      toast.error("Login failed");
     } finally {
       setLoading(false);
     }
@@ -119,7 +111,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-500 transition hover:scale-105 hover:text-gray-700 active:scale-95"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -131,7 +123,7 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading || !email || !password}
-            className="w-full h-11 rounded-lg bg-[#7FA37F] text-white"
+            className="w-full cursor-pointer rounded-lg bg-[#7FA37F] h-11 text-white transition hover:scale-105 hover:bg-[#6f936f] active:scale-95 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             {loading ? "Signing in..." : "Continue"}
           </button>

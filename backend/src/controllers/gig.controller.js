@@ -3,12 +3,12 @@ const pool = require("../config/db");
 // ================= CREATE GIG =================
 exports.createGig = async (req, res) => {
   const userId = req.user.id;
-  const { title, location, pay_per_day, total_slots } = req.body;
+  const { title, location, pay_per_day, slots } = req.body;
 
   try {
     // 🔥 VALIDATIONS
 
-    if (!title || !location || !pay_per_day || !total_slots) {
+    if (!title || !location || !pay_per_day || !slots) {
       return res.status(400).json({
         message: "All fields are required",
       });
@@ -22,7 +22,7 @@ exports.createGig = async (req, res) => {
     }
 
     // ✅ Ensure slots is INTEGER
-    if (!Number.isInteger(total_slots) || total_slots < 1) {
+    if (!Number.isInteger(slots) || slots < 1) {
       return res.status(400).json({
         message: "Slots must be a positive integer",
       });
@@ -45,10 +45,10 @@ exports.createGig = async (req, res) => {
     // 🔥 Insert gig
     const result = await pool.query(
       `INSERT INTO gigs 
-       (client_id, created_by, title, location, pay_per_day, total_slots, status)
-       VALUES ($1, $2, $3, $4, $5, 'published')
-       RETURNING *`,
-      [clientId, title, location, pay_per_day, total_slots]
+      (client_id, created_by, title, location, pay_per_day, total_slots, status)
+      VALUES ($1, $2, $3, $4, $5, $6, 'published')
+      RETURNING *`,
+      [clientId, userId, title, location, pay_per_day, slots]
     );
 
     res.status(201).json({

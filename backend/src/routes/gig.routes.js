@@ -1,11 +1,12 @@
 const express = require("express");
 const router = express.Router();
 
-// ✅ IMPORT FULL CONTROLLER OBJECT
 const gigController = require("../controllers/gig.controller");
+const auth = require("../middleware/auth.middleware"); // 👈 ADD THIS
 
-// ✅ ROUTES (safe access)
-router.post("/", gigController.createGig);
+// ✅ APPLY MIDDLEWARE HERE
+router.post("/", auth, gigController.createGig);
+
 router.get("/", gigController.getAllGigs);
 
 module.exports = router;

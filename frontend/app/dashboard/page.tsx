@@ -2,242 +2,110 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AxiosError } from "axios";
-import useAuth from "@/lib/useAuth";
 import api from "@/lib/api";
 import GigCard from "@/components/GigCard";
-import { Application, Gig, UserType } from "@/types";
-import { toast } from "react-hot-toast";
-
-type StoredUser = {
-  type?: UserType;
-};
-
-type ApiErrorResponse = {
-  message?: string;
-};
-
-const isGigArray = (value: unknown): value is Gig[] => Array.isArray(value);
-
-const getStoredUserType = (): UserType | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const storedUser = localStorage.getItem("user");
-
-    if (!storedUser) {
-      return null;
-    }
-
-    const parsedUser = JSON.parse(storedUser) as StoredUser;
-
-    return parsedUser.type ?? null;
-  } catch (error) {
-    console.error("Failed to parse stored user:", error);
-    return null;
-  }
-};
+import { Gig } from "@/types";
 
 export default function DashboardPage() {
-  const { loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [gigs, setGigs] = useState<Gig[]>([]);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [userReady, setUserReady] = useState(false);
+
   const [applying, setApplying] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const userType = getStoredUserType();
-  const isClient = userType === "client";
-
+  // Load user
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+    setUser(storedUser);
+    setUserReady(true);
+  }, []);
 
-    const fetchData = async () => {
+  const role = user?.type || user?.role || user?.user_type;
+  const isClient = role === "client";
+
+  // Fetch gigs
+  useEffect(() => {
+    const fetchGigs = async () => {
       try {
         setLoading(true);
+        const res = await api.get("/gigs");
 
-        const gigRes = await api.get("/gigs");
-        const gigData: unknown = gigRes.data;
-
-        if (isGigArray(gigData)) {
-          setGigs(gigData);
-        } else if (
-          typeof gigData === "object" &&
-          gigData !== null &&
-          "gigs" in gigData &&
-          isGigArray(gigData.gigs)
-        ) {
-          setGigs(gigData.gigs);
-        } else if (
-          typeof gigData === "object" &&
-          gigData !== null &&
-          "data" in gigData &&
-          isGigArray(gigData.data)
-        ) {
-          setGigs(gigData.data);
-        } else {
-          console.log("Unexpected gigs response:", gigData);
-          setGigs([]);
-        }
-
-        if (!isClient) {
-          const appRes = await api.get("/applications/me");
-          const appData: unknown = appRes.data;
-
-          if (Array.isArray(appData)) {
-            setApplications(appData as Application[]);
-          } else if (
-            typeof appData === "object" &&
-            appData !== null &&
-            "applications" in appData &&
-            Array.isArray(appData.applications)
-          ) {
-            setApplications(appData.applications as Application[]);
-          } else {
-            console.log("Unexpected applications response:", appData);
-            setApplications([]);
-          }
-        }
-      } catch (error) {
-        console.error("Dashboard load failed:", error);
-        toast.error("Failed to load dashboard");
+        const data = res.data?.gigs || res.data;
+        setGigs(data || []);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load gigs");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [authLoading, isClient]);
+    fetchGigs();
+  }, []);
 
-  const hasApplied = (gigId: string) =>
-    applications.some((application) => {
-      return application.gig_id === gigId || application.gig?.id === gigId;
-    });
-
+  // APPLY FUNCTION (FIXED)
   const handleApply = async (gigId: string) => {
     try {
       setApplying(gigId);
 
       await api.post("/applications", {
-        gig_id: gigId,
+        gig_id: gigId, // ✅ matches backend
       });
 
-      setApplications((previousApplications) => [
-        ...previousApplications,
-        {
-          id: `temp-${gigId}`,
-          status: "applied",
-          gig_id: gigId,
-        },
-      ]);
+      alert("Applied successfully");
 
-      toast.success("Applied successfully");
-    } catch (error) {
-      const apiError = error as AxiosError<ApiErrorResponse>;
-      const message = apiError.response?.data?.message;
+    } catch (err: any) {
+      console.error("Apply failed:", err);
 
-      if (message === "Already applied") {
-        toast.error("You have already applied");
-      } else if (message === "Gig is full") {
-        toast.error("No slots available");
-      } else if (message === "Student profile not found") {
-        toast.error("Complete your profile first");
-      } else {
-        toast.error("Something went wrong");
-      }
+      const message =
+        err?.response?.data?.message || "Failed to apply";
+
+      alert(message);
     } finally {
       setApplying(null);
     }
   };
 
-  const handleViewApplicants = (gigId: string) => {
-    if (!gigId) {
-      toast.error("Invalid gig ID");
+  // VIEW APPLICANTS
+  const handleViewApplicants = (gigId: string, createdBy?: string) => {
+    if (!gigId) return;
+
+    if (createdBy && createdBy !== user?.id) {
+      alert("Not authorized");
       return;
     }
 
     router.push(`/dashboard/gigs/${gigId}/applicants`);
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        Checking authentication...
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        Loading dashboard...
-      </div>
-    );
-  }
+  // UI STATES
+  if (!userReady) return <div className="p-6">Loading user...</div>;
+  if (loading) return <div className="p-6">Loading gigs...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+  if (gigs.length === 0) return <div className="p-6">No gigs available</div>;
 
   return (
-    <div className="min-h-screen bg-green-50 p-6">
-      <div className="mx-auto max-w-5xl">
-        <h1 className="mb-6 text-2xl font-semibold text-green-800">
-          {isClient ? "Your Gigs" : "Available Gigs"}
-        </h1>
-
-        {gigs.length === 0 && (
-          <div className="py-10 text-center text-gray-600">No gigs available</div>
-        )}
-
-        <div className="grid gap-4">
-          {gigs.map((gig) => {
-            const applied = hasApplied(gig.id);
-            const isApplying = applying === gig.id;
-
-            if (isClient) {
-              return (
-                <GigCard
-                  key={gig.id}
-                  gig={gig}
-                  onViewApplicants={handleViewApplicants}
-                />
-              );
-            }
-
-            return (
-              <div
-                key={gig.id}
-                className="flex items-center justify-between rounded-xl border border-green-100 bg-white p-5 shadow-sm"
-              >
-                <div>
-                  <h2 className="text-lg font-medium text-gray-800">{gig.title}</h2>
-                  <p className="mt-1 text-sm text-gray-500">{gig.location}</p>
-                  <p className="mt-1 text-sm font-medium text-gray-700">
-                    Rs.{gig.pay_per_day} / day
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleApply(gig.id)}
-                  disabled={applied || isApplying}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition ${
-                    applied
-                      ? "cursor-not-allowed bg-gray-300 text-gray-500"
-                      : isApplying
-                        ? "bg-green-300"
-                        : "bg-green-600 hover:bg-green-700"
-                  }`}
-                >
-                  {applied ? "Applied" : isApplying ? "Applying..." : "Apply"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <div className="p-6 space-y-4">
+      {gigs.map((gig) => (
+        <GigCard
+          key={gig.id}
+          gig={gig}
+          onViewApplicants={isClient ? handleViewApplicants : undefined}
+          onApply={!isClient ? handleApply : undefined}
+          actionDisabled={!isClient ? applying === gig.id : false}
+          actionLabel={
+            isClient
+              ? "View Applicants"
+              : applying === gig.id
+              ? "Applying..."
+              : "Apply"
+          }
+        />
+      ))}
     </div>
   );
 }

@@ -1,21 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const userType = localStorage.getItem("userType");
-    setRole(userType);
-  }, []);
+    const storedUser = localStorage.getItem("user");
+
+    if (!storedUser) {
+      setRole(null);
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(storedUser) as { type?: string };
+      setRole(parsedUser.type ?? null);
+    } catch {
+      setRole(null);
+    }
+  }, [pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("userType");
+    localStorage.removeItem("user");
     router.push("/login");
   };
 
@@ -37,7 +49,7 @@ export default function Navbar() {
 
         {role === "client" && (
           <>
-            <Link href="/client/dashboard" className="text-sm text-gray-700">
+            <Link href="/dashboard" className="text-sm text-gray-700">
               Dashboard
             </Link>
             <Link href="/client/create-gig" className="text-sm text-gray-700">
@@ -48,7 +60,7 @@ export default function Navbar() {
 
         <button
           onClick={handleLogout}
-          className="text-sm text-red-500 hover:text-red-600"
+          className="cursor-pointer text-sm text-red-500 transition hover:scale-105 hover:text-red-600 active:scale-95"
         >
           Logout
         </button>

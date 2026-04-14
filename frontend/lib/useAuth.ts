@@ -9,11 +9,26 @@ export default function useAuth() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
 
     if (!token) {
-      router.push("/login");
-    } else {
+      router.replace("/login");
+      return;
+    }
+
+    if (!user) {
+      localStorage.removeItem("token");
+      router.replace("/login");
+      return;
+    }
+
+    try {
+      JSON.parse(user);
       setLoading(false);
+    } catch {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      router.replace("/login");
     }
   }, [router]);
 

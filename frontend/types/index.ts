@@ -8,7 +8,6 @@ export interface Gig {
   location: string;
   pay_per_day: number;
   slots?: number;
-  total_slots?: number;
   filled_slots?: number;
   created_by?: string;
 }
