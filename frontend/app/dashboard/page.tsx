@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Load user
+  // 🔹 Load user from localStorage
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
     setUser(storedUser);
@@ -27,15 +27,26 @@ export default function DashboardPage() {
   const role = user?.type || user?.role || user?.user_type;
   const isClient = role === "client";
 
-  // Fetch gigs
+  // 🔹 Fetch gigs with role-based filtering
   useEffect(() => {
     const fetchGigs = async () => {
       try {
         setLoading(true);
-        const res = await api.get("/gigs");
 
-        const data = res.data?.gigs || res.data;
-        setGigs(data || []);
+        const res = await api.get("/gigs");
+        const data = res.data?.gigs || res.data || [];
+
+        // ✅ FILTER FOR CLIENT
+        if (isClient) {
+          const myGigs = data.filter(
+            (gig: any) => gig.created_by === user?.id
+          );
+          setGigs(myGigs);
+        } else {
+          // ✅ STUDENT SEES ALL
+          setGigs(data);
+        }
+
       } catch (err) {
         console.error(err);
         setError("Failed to load gigs");
@@ -44,16 +55,18 @@ export default function DashboardPage() {
       }
     };
 
-    fetchGigs();
-  }, []);
+    if (userReady) {
+      fetchGigs();
+    }
+  }, [userReady, isClient, user?.id]);
 
-  // APPLY FUNCTION (FIXED)
+  // 🔹 Apply to gig
   const handleApply = async (gigId: string) => {
     try {
       setApplying(gigId);
 
       await api.post("/applications", {
-        gig_id: gigId, // ✅ matches backend
+        gig_id: gigId,
       });
 
       alert("Applied successfully");
@@ -70,7 +83,7 @@ export default function DashboardPage() {
     }
   };
 
-  // VIEW APPLICANTS
+  // 🔹 View applicants
   const handleViewApplicants = (gigId: string, createdBy?: string) => {
     if (!gigId) return;
 
@@ -82,12 +95,27 @@ export default function DashboardPage() {
     router.push(`/dashboard/gigs/${gigId}/applicants`);
   };
 
-  // UI STATES
-  if (!userReady) return <div className="p-6">Loading user...</div>;
-  if (loading) return <div className="p-6">Loading gigs...</div>;
-  if (error) return <div className="p-6 text-red-500">{error}</div>;
-  if (gigs.length === 0) return <div className="p-6">No gigs available</div>;
+  // 🔴 Prevent wrong UI before user loads
+  if (!userReady) {
+    return <div className="p-6">Loading user...</div>;
+  }
 
+  // 🔴 Loading state
+  if (loading) {
+    return <div className="p-6">Loading gigs...</div>;
+  }
+
+  // 🔴 Error state
+  if (error) {
+    return <div className="p-6 text-red-500">{error}</div>;
+  }
+
+  // 🔴 Empty state
+  if (gigs.length === 0) {
+    return <div className="p-6">No gigs available</div>;
+  }
+
+  // ✅ MAIN UI
   return (
     <div className="p-6 space-y-4">
       {gigs.map((gig) => (
