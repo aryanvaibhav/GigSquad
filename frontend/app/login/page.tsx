@@ -30,13 +30,22 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
+        // 🔥 CLEAR OLD SESSION FIRST
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
+        // 🔥 SET NEW SESSION
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
-        router.push("/dashboard");
+
+        console.log("LOGIN USER:", data.user);
+
+        window.location.replace("/dashboard");
       } else {
         toast.error(data.message || "Login failed");
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Login failed");
     } finally {
       setLoading(false);
@@ -45,8 +54,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-[#F4F6F3]">
-
-      {/* LEFT SIDE */}
+      {/* LEFT */}
       <div className="hidden lg:flex w-1/2 items-center justify-center bg-[#E6EDE4] p-10">
         <div className="text-center space-y-5 max-w-sm">
           <img
@@ -54,23 +62,19 @@ export default function LoginPage() {
             alt="illustration"
             className="w-full max-w-xs mx-auto"
           />
-
           <h2 className="text-xl font-semibold text-gray-900">
             Work. Earn. Grow.
           </h2>
-
           <p className="text-sm text-gray-600">
             Find gigs, build experience, and earn flexibly with GigSquad.
           </p>
         </div>
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* RIGHT */}
       <div className="flex w-full lg:w-1/2 items-center justify-center px-6">
-
         <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
-
-          <div className="space-y-1">
+          <div>
             <h1 className="text-2xl font-semibold text-gray-900">
               Welcome back
             </h1>
@@ -80,15 +84,13 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-5">
-
             {/* Email */}
-            <div className="space-y-1">
+            <div>
               <label className="text-sm text-gray-700">Email</label>
               <div className="relative">
                 <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="email"
-                  placeholder="you@example.com"
                   className="w-full h-11 pl-10 pr-4 rounded-lg border border-gray-400 text-gray-800"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -97,12 +99,11 @@ export default function LoginPage() {
             </div>
 
             {/* Password */}
-            <div className="space-y-1">
+            <div>
               <label className="text-sm text-gray-700">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
                   className="w-full h-11 pl-4 pr-10 rounded-lg border border-gray-400 text-gray-800"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -111,23 +112,21 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-500 transition hover:scale-105 hover:text-gray-700 active:scale-95"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
-
           </div>
 
           <button
             onClick={handleLogin}
             disabled={loading || !email || !password}
-            className="w-full cursor-pointer rounded-lg bg-[#7FA37F] h-11 text-white transition hover:scale-105 hover:bg-[#6f936f] active:scale-95 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="w-full rounded-lg bg-[#7FA37F] h-11 text-white hover:bg-[#6f936f]"
           >
             {loading ? "Signing in..." : "Continue"}
           </button>
-
         </div>
       </div>
     </div>

@@ -44,6 +44,7 @@ export default function ApplicantsPage() {
     typeof window !== "undefined"
       ? (JSON.parse(localStorage.getItem("user") || "{}") as {
           type?: UserType;
+          id?: string;
         })
       : null;
 
@@ -65,8 +66,10 @@ export default function ApplicantsPage() {
         setLoading(true);
         setErrorMessage(null);
 
-        if (user?.type === "client") {
-          console.log("Fetching applicants for gig:", gigId);
+        // 🔴 GUARD: only client allowed
+        if (user?.type !== "client") {
+          setErrorMessage("Only clients can view applicants.");
+          return;
         }
 
         const response = await api.get(`/applications/${gigId}`);
@@ -76,7 +79,7 @@ export default function ApplicantsPage() {
         console.error("Failed to fetch applicants:", error);
         setApplicants([]);
 
-        // ✅ SAFE TYPE HANDLING
+        // ✅ SAFE ERROR HANDLING
         if (error instanceof AxiosError) {
           if (error.response?.status === 403) {
             setErrorMessage("You are not allowed to view applicants for this gig.");
@@ -150,7 +153,7 @@ export default function ApplicantsPage() {
 
           <Link
             href="/dashboard"
-            className="rounded-lg border border-green-200 bg-white px-4 py-2 text-sm font-medium text-green-800 transition hover:bg-green-100"
+            className="rounded-lg border border-green-200 bg-white px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-100"
           >
             Back to Dashboard
           </Link>

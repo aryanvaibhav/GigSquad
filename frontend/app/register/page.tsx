@@ -77,7 +77,7 @@ export default function RegisterPage() {
       localStorage.setItem("user", JSON.stringify(res.data.user));
 
       toast.success("Account created successfully");
-      router.push("/dashboard");
+      window.location.replace("/dashboard");
     } catch (error) {
       const apiError = error as AxiosError<ApiErrorResponse>;
       const message = apiError.response?.data?.message;
