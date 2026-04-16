@@ -20,15 +20,29 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "Invalid user type" });
     }
 
-    // 🔹 Check existing user
-    const existingUser = await db.query(
-      "SELECT id FROM users WHERE email = $1 OR phone = $2",
-      [email, phone]
+    // 🔥 CHECK EMAIL SEPARATELY
+    const emailCheck = await db.query(
+      "SELECT id FROM users WHERE email = $1",
+      [email]
     );
 
-    if (existingUser.rows.length > 0) {
+    if (emailCheck.rows.length > 0) {
       return res.status(400).json({
-        message: "User already exists with this email or phone",
+        field: "email",
+        message: "Email already exists",
+      });
+    }
+
+    // 🔥 CHECK PHONE SEPARATELY
+    const phoneCheck = await db.query(
+      "SELECT id FROM users WHERE phone = $1",
+      [phone]
+    );
+
+    if (phoneCheck.rows.length > 0) {
+      return res.status(400).json({
+        field: "phone",
+        message: "Phone number already exists",
       });
     }
 
@@ -47,7 +61,7 @@ exports.register = async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // 🔥 AUTO CREATE PROFILE (CRITICAL)
+    // 🔥 AUTO CREATE PROFILE
     if (type === "student") {
       await client.query(
         `INSERT INTO student_profiles (user_id)
@@ -88,6 +102,23 @@ exports.register = async (req, res) => {
     await client.query("ROLLBACK");
 
     console.error("REGISTER ERROR:", err);
+
+    // 🔥 HANDLE UNIQUE CONSTRAINT (PRODUCTION SAFE)
+    if (err.code === "23505") {
+      if (err.constraint === "unique_email") {
+        return res.status(400).json({
+          field: "email",
+          message: "Email already exists",
+        });
+      }
+
+      if (err.constraint === "unique_phone") {
+        return res.status(400).json({
+          field: "phone",
+          message: "Phone number already exists",
+        });
+      }
+    }
 
     return res.status(500).json({
       message: err.message || "Server error",

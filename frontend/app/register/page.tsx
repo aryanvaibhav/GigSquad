@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { AxiosError } from "axios";
+import axios from "axios";
 import api from "@/lib/api";
 import { toast } from "react-hot-toast";
 
@@ -13,20 +12,7 @@ type RegisterForm = {
   type: "student" | "client";
 };
 
-type RegisterResponse = {
-  token?: string;
-  user?: {
-    type?: "student" | "client";
-  };
-};
-
-type ApiErrorResponse = {
-  message?: string;
-};
-
 export default function RegisterPage() {
-  const router = useRouter();
-
   const [form, setForm] = useState<RegisterForm>({
     email: "",
     phone: "",
@@ -36,52 +22,62 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
 
+  const [emailError, setEmailError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
+    setEmailError("");
+    setPhoneError("");
 
-    setForm((currentForm) => ({
-      ...currentForm,
-      [name]:
-        name === "type" ? (value as RegisterForm["type"]) : value,
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
     }));
   };
 
-  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.email || !form.phone || !form.password || !form.type) {
+    if (!form.email || !form.phone || !form.password) {
       toast.error("All fields are required");
       return;
     }
 
     try {
       setLoading(true);
+      setEmailError("");
+      setPhoneError("");
 
-      const payload: RegisterForm = {
-        email: form.email,
-        password: form.password,
-        phone: form.phone,
-        type: form.type,
-      };
+      const res = await api.post("/auth/register", form);
 
-      const res = await api.post<RegisterResponse>("/auth/register", payload);
-
-      if (!res.data.token || !res.data.user) {
-        toast.error("Registration failed");
-        return;
-      }
-
+      localStorage.clear();
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
 
       toast.success("Account created successfully");
       window.location.replace("/dashboard");
+
     } catch (error) {
-      const apiError = error as AxiosError<ApiErrorResponse>;
-      const message = apiError.response?.data?.message;
-      toast.error(message || "Registration failed");
+      console.error("REGISTER ERROR:", error);
+
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data as {
+          field?: string;
+          message?: string;
+        };
+
+        if (data?.field === "email") {
+          setEmailError(data.message || "Email already exists");
+        } else if (data?.field === "phone") {
+          setPhoneError(data.message || "Phone already exists");
+        } else {
+          toast.error(data?.message || "Registration failed");
+        }
+      } else {
+        toast.error("Something went wrong");
+      }
     } finally {
       setLoading(false);
     }
@@ -97,47 +93,74 @@ export default function RegisterPage() {
 
         <form onSubmit={handleRegister} className="space-y-5">
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-lg text-gray-800"
-          />
+          {/* EMAIL */}
+          <div>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={handleChange}
+              className={`w-full px-4 py-2 border rounded-lg text-gray-800 focus:outline-none focus:ring-2 ${
+                emailError
+                  ? "border-red-400 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-green-400"
+              }`}
+            />
+            {emailError && (
+              <p className="text-sm text-red-500 mt-1">
+                {emailError}
+              </p>
+            )}
+          </div>
 
-          <input
-            type="text"
-            name="phone"
-            placeholder="Phone"
-            value={form.phone}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-lg text-gray-800"
-          />
+          {/* PHONE */}
+          <div>
+            <input
+              type="text"
+              name="phone"
+              placeholder="Phone"
+              value={form.phone}
+              onChange={handleChange}
+              className={`w-full px-4 py-2 border rounded-lg text-gray-800 focus:outline-none focus:ring-2 ${
+                phoneError
+                  ? "border-red-400 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-green-400"
+              }`}
+            />
+            {phoneError && (
+              <p className="text-sm text-red-500 mt-1">
+                {phoneError}
+              </p>
+            )}
+          </div>
 
+          {/* PASSWORD */}
           <input
             type="password"
             name="password"
             placeholder="Password"
             value={form.password}
             onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-lg text-gray-800"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400"
           />
 
+          {/* TYPE */}
           <select
             name="type"
             value={form.type}
             onChange={handleChange}
-            className="w-full px-4 py-2 border rounded-lg text-gray-800"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-400"
           >
             <option value="student">Student</option>
             <option value="client">Client</option>
           </select>
 
+          {/* BUTTON */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full cursor-pointer rounded-lg bg-green-600 py-2 text-white transition hover:scale-105 hover:bg-green-700 active:scale-95 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="w-full rounded-lg bg-green-600 py-2 text-white font-medium transition duration-200 hover:bg-green-700 hover:scale-105 active:scale-95 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Creating..." : "Register"}
           </button>
