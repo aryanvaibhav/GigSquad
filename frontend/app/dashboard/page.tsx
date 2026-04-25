@@ -28,23 +28,34 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string | null>(null);
 
+  // ✅ FIXED SESSION HANDLING
   useEffect(() => {
     try {
       const userData = localStorage.getItem("user");
       const token = localStorage.getItem("token");
 
       if (!userData || !token) {
-        router.push("/login");
+        router.replace("/login"); // 🔥 replace instead of push
         return;
       }
 
-      setUser(JSON.parse(userData) as StoredUser);
+      const parsedUser = JSON.parse(userData);
+
+      if (!parsedUser?.id || !parsedUser?.type) {
+        localStorage.clear();
+        router.replace("/login");
+        return;
+      }
+
+      setUser(parsedUser);
     } catch {
-      router.push("/login");
+      localStorage.clear();
+      router.replace("/login");
     }
   }, [router]);
 
   const isClient = user?.type === "client";
+
   const visibleGigs = isClient
     ? gigs.filter((gig) => gig.created_by === user?.id)
     : gigs;
@@ -130,12 +141,11 @@ export default function DashboardPage() {
     }
   };
 
+  // ❌ REMOVED sessionStorage logic (IMPORTANT)
   const handleViewApplicants = (gigId: string, createdBy?: string) => {
     if (!gigId || !user?.id) return;
     if (!createdBy || createdBy !== user.id) return;
 
-    sessionStorage.setItem("applicantsGigId", gigId);
-    sessionStorage.setItem("applicantsGigOwner", createdBy);
     router.push(`/dashboard/gigs/${gigId}/applicants`);
   };
 
@@ -155,10 +165,10 @@ export default function DashboardPage() {
             isClient
               ? "View Applicants"
               : hasApplied(gig.id)
-                ? "Applied"
-                : applying === gig.id
-                  ? "Applying..."
-                  : "Apply"
+              ? "Applied"
+              : applying === gig.id
+              ? "Applying..."
+              : "Apply"
           }
         />
       ))}

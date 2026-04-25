@@ -1,22 +1,19 @@
-import axios, { AxiosHeaders } from "axios";
+import axios from "axios";
 
 const api = axios.create({
   baseURL: "http://127.0.0.1:5000/api/v1",
 });
 
-// ✅ SIMPLE & CORRECT WAY
+// 🔥 ALWAYS attach latest token
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("token");
 
     if (token) {
-      config.headers = new AxiosHeaders({
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      });
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
     }
   }
-
   return config;
 });
 

@@ -3,34 +3,43 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+type User = {
+  id: string;
+  type: "student" | "client";
+};
+
 export default function useAuth() {
   const router = useRouter();
+
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
-
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-
-    if (!user) {
-      localStorage.removeItem("token");
-      router.replace("/login");
-      return;
-    }
-
     try {
-      JSON.parse(user);
-      setLoading(false);
+      const storedUser = localStorage.getItem("user");
+      const token = localStorage.getItem("token");
+
+      if (!storedUser || !token) {
+        router.replace("/login");
+        return;
+      }
+
+      const parsedUser = JSON.parse(storedUser);
+
+      if (!parsedUser?.id || !parsedUser?.type) {
+        localStorage.clear();
+        router.replace("/login");
+        return;
+      }
+
+      setUser(parsedUser);
     } catch {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      localStorage.clear();
       router.replace("/login");
+    } finally {
+      setLoading(false);
     }
   }, [router]);
 
-  return { loading };
+  return { user, loading };
 }
