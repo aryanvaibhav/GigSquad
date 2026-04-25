@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
-  const router = useRouter();
   const pathname = usePathname();
   const [role, setRole] = useState<string | null>(null);
 
@@ -25,10 +24,10 @@ export default function Navbar() {
     }
   }, [pathname]);
 
+  // 🔥 FIXED LOGOUT
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/login");
+    localStorage.clear(); // better than removing individually
+    window.location.replace("/login"); // full reset
   };
 
   return (
