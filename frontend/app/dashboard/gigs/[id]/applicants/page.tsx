@@ -8,18 +8,14 @@ import api from "@/lib/api";
 import ApplicantCard from "@/components/ApplicantCard";
 import { Applicant, ApplicationStatus, UserType } from "@/types";
 
+type ApplicantActionStatus = Extract<ApplicationStatus, "confirmed" | "rejected">;
+
 type ApplicantsResponse =
   | Applicant[]
   | {
       applications?: Applicant[];
       data?: Applicant[];
     };
-
-type ApplicantActionStatus = Extract<ApplicationStatus, "confirmed" | "rejected">;
-
-type ApplicantsErrorResponse = {
-  message?: string;
-};
 
 const isApplicantArray = (value: unknown): value is Applicant[] =>
   Array.isArray(value);
@@ -66,12 +62,13 @@ export default function ApplicantsPage() {
         setLoading(true);
         setErrorMessage(null);
 
-        // 🔴 GUARD: only client allowed
+        // ✅ Only clients allowed (basic guard)
         if (user?.type !== "client") {
           setErrorMessage("Only clients can view applicants.");
           return;
         }
 
+        // ✅ REAL SOURCE OF TRUTH → backend
         const response = await api.get(`/applications/${gigId}`);
         setApplicants(normalizeApplicants(response.data));
 
@@ -79,7 +76,7 @@ export default function ApplicantsPage() {
         console.error("Failed to fetch applicants:", error);
         setApplicants([]);
 
-        // ✅ SAFE ERROR HANDLING
+        // ✅ Handle 403 properly
         if (error instanceof AxiosError) {
           if (error.response?.status === 403) {
             setErrorMessage("You are not allowed to view applicants for this gig.");

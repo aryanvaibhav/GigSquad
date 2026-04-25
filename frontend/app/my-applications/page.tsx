@@ -26,6 +26,23 @@ export default function MyApplicationsPage() {
   useEffect(() => {
     if (authLoading) return;
 
+    try {
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser
+        ? (JSON.parse(storedUser) as { type?: string })
+        : null;
+
+      if (user?.type !== "student") {
+        setError("Only students can view applications");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      setError("Failed to load applications");
+      setLoading(false);
+      return;
+    }
+
     const fetchApplications = async () => {
       try {
         setLoading(true);

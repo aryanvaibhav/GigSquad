@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 
@@ -16,6 +16,26 @@ export default function CreateGigPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+
+    if (!storedUser || !token) {
+      router.replace("/login");
+      return;
+    }
+
+    try {
+      const user = JSON.parse(storedUser) as { type?: string };
+
+      if (user.type !== "client") {
+        router.replace("/dashboard");
+      }
+    } catch {
+      router.replace("/login");
+    }
+  }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({
